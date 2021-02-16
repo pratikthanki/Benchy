@@ -35,12 +35,10 @@ namespace Benchy
         /// </summary>
         public string UserAgent { get; set; }
 
-        public string GetRandomUrl()
-        {
-            var rnd = new Random();
-
-            return Urls[rnd.Next(Urls.Length)];
-        }
+        /// <summary>
+        /// Set seed to create reproducible test runs
+        /// </summary>
+        public int RandomSeed { get; set; }
     }
 
     public class Stage

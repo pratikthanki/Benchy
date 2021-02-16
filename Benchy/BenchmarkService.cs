@@ -11,7 +11,8 @@ namespace Benchy
     {
         private readonly ILogger<BenchmarkService> _logger;
         private readonly IWebClient _webClient;
-        private readonly IOptions<Configuration> _configuration;
+        private readonly IValueProvider _valueProvider;
+        private readonly Configuration _configuration;
         private readonly CancellationTokenSource _cancellationTokenSource;
         private readonly CancellationToken _cancellationToken;
         private Task _task;
@@ -19,12 +20,14 @@ namespace Benchy
         public BenchmarkService(
             ILogger<BenchmarkService> logger,
             IWebClient webClient,
+            IValueProvider valueProvider,
             IOptions<Configuration> configuration,
             IHostApplicationLifetime appLifetime)
         {
             _logger = logger;
             _webClient = webClient;
-            _configuration = configuration;
+            _valueProvider = valueProvider;
+            _configuration = configuration.Value;
 
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(appLifetime.ApplicationStopping);
 
@@ -49,7 +52,7 @@ namespace Benchy
             if (!_cancellationTokenSource.IsCancellationRequested)
                 _task = Task.Run(RunSafe, cancellationToken);
 
-            _logger.LogInformation($"Starting {nameof(BenchmarkService)}..");
+            _logger.LogInformation($"Completed {nameof(BenchmarkService)}..");
 
             return Task.CompletedTask;
         }
@@ -68,7 +71,7 @@ namespace Benchy
 
         private async Task RunSafe()
         {
-            foreach (var stage in _configuration.Value.Stages)
+            foreach (var stage in _configuration.Stages)
             {
                 var numOfThreads = stage.VirtualUsers;
                 var waitHandles = new WaitHandle[numOfThreads];
@@ -80,7 +83,7 @@ namespace Benchy
                     var handle = new EventWaitHandle(false, EventResetMode.ManualReset);
                     var thread = new Thread(() =>
                     {
-                        _webClient.GetAsync(_configuration.Value.GetRandomUrl(), _cancellationToken);
+                        _webClient.GetAsync(GetRandomUrl(), _cancellationToken);
                         handle.Set();
                     });
 
@@ -90,6 +93,11 @@ namespace Benchy
 
                 WaitHandle.WaitAll(waitHandles);
             }
+        }
+        
+        private string GetRandomUrl()
+        {
+            return _configuration.Urls[_valueProvider.GetNextInt()];
         }
     }
 }

@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -24,6 +23,7 @@ namespace Benchy
                 {
                     services
                         .AddHostedService<BenchmarkService>()
+                        .AddSingleton<IValueProvider, ValueProvider>()
                         .AddTransient<IWebClient, WebClient>()
                         .Configure<Configuration>(hostContext.Configuration);
                 })
