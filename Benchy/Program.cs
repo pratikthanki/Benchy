@@ -1,31 +1,59 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using System;
+using System.Text;
+using System.Threading.Tasks;
+using Benchy.Helpers;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using ColoredConsole;
 
 namespace Benchy
 {
     class Program
     {
-        static void Main(string[] args)
+        [STAThread]
+        static async Task Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();
+            Console.OutputEncoding = Encoding.UTF8;
+
+            try
+            {
+                await CreateHostBuilder(args).Build().RunAsync();
+            }
+            catch (Exception ex)
+            {
+                ColorConsole.WriteLine(ex.Message.White().OnRed());
+            }
         }
 
         private static IHostBuilder CreateHostBuilder(string[] args)
         {
-            return Host.CreateDefaultBuilder(args)
+            return Host
+                .CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration((_, config) =>
                 {
-                    config.AddCommandLine(args);
-                    config.AddJsonFile("appsettings.json");
+                    config
+                        .AddCommandLine(args)
+                        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
                 })
                 .ConfigureServices((hostContext, services) =>
                 {
                     services
                         .AddHostedService<BenchmarkService>()
                         .AddSingleton<IValueProvider, ValueProvider>()
-                        .AddTransient<IWebClient, WebClient>()
-                        .Configure<Configuration>(hostContext.Configuration);
+                        .AddTransient<IStageHandler, StageHandler>()
+                        .AddTransient<IHttpService, HttpService>()
+                        .AddTransient<ITimeHandler, TimeHandler>()
+                        .Configure<Configuration.Configuration>(hostContext.Configuration);
+                })
+                .ConfigureLogging((hostContext, logging) =>
+                {
+                    logging
+                        .ClearProviders()
+                        .SetMinimumLevel(LogLevel.Warning)
+                        .AddDebug()
+                        .AddConsole();
                 })
                 .UseConsoleLifetime();
         }

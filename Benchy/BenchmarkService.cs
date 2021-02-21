@@ -1,6 +1,9 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Benchy.Helpers;
+using Benchy.Models;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -10,23 +13,26 @@ namespace Benchy
     public class BenchmarkService : IHostedService
     {
         private readonly ILogger<BenchmarkService> _logger;
-        private readonly IWebClient _webClient;
+        private readonly IHttpService _httpService;
         private readonly IValueProvider _valueProvider;
-        private readonly Configuration _configuration;
+        private readonly Configuration.Configuration _configuration;
         private readonly CancellationTokenSource _cancellationTokenSource;
-        private readonly CancellationToken _cancellationToken;
+
+        private readonly SummaryReport _summaryReport;
+
         private Task _task;
 
         public BenchmarkService(
             ILogger<BenchmarkService> logger,
-            IWebClient webClient,
+            IHttpService httpService,
             IValueProvider valueProvider,
-            IOptions<Configuration> configuration,
+            IOptions<Configuration.Configuration> configuration,
             IHostApplicationLifetime appLifetime)
         {
             _logger = logger;
-            _webClient = webClient;
+            _httpService = httpService;
             _valueProvider = valueProvider;
+            _summaryReport = new SummaryReport();
             _configuration = configuration.Value;
 
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(appLifetime.ApplicationStopping);
@@ -38,8 +44,6 @@ namespace Benchy
                 _logger.LogInformation($"Shutting down {nameof(BenchmarkService)}..");
                 appLifetime.StopApplication();
             });
-
-            _cancellationToken = _cancellationTokenSource.Token;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -47,12 +51,16 @@ namespace Benchy
             _logger.LogInformation($"Starting {nameof(BenchmarkService)}..");
 
             if (_task != null)
+            {
                 throw new InvalidOperationException();
+            }
 
             if (!_cancellationTokenSource.IsCancellationRequested)
-                _task = Task.Run(RunSafe, cancellationToken);
+            {
+                _task = Task.Run(() => RunSafe(_cancellationTokenSource.Token), cancellationToken);
+            }
 
-            _logger.LogInformation($"Completed {nameof(BenchmarkService)}..");
+            _logger.LogInformation($"Started {nameof(BenchmarkService)}..");
 
             return Task.CompletedTask;
         }
@@ -62,42 +70,66 @@ namespace Benchy
             _logger.LogInformation($"Stopping {nameof(BenchmarkService)}..");
 
             _cancellationTokenSource.Cancel();
+
             var runningTask = Interlocked.Exchange(ref _task, null);
             if (runningTask != null)
+            {
                 await runningTask;
+            }
 
             _logger.LogInformation($"Stopped {nameof(BenchmarkService)}..");
         }
 
-        private async Task RunSafe()
+        private async Task RunSafe(CancellationToken cancellationToken)
         {
-            foreach (var stage in _configuration.Stages)
+            // TODO: Would it be helpful to log throughout the benchmark so it is clear the application is alive?
+            // _ = Task.Run(() => { }, cancellationToken);
+
+            _summaryReport.TestStart = DateTimeOffset.UtcNow;
+
+            try
             {
-                var numOfThreads = stage.VirtualUsers;
-                var waitHandles = new WaitHandle[numOfThreads];
-
-                for (var i = 0; i < numOfThreads; i++)
+                foreach (var stage in _configuration.Stages)
                 {
-                    var j = i;
+                    var endpoints = Enumerable
+                        .Range(0, stage.Requests)
+                        .Select(_ => _configuration.Urls[_valueProvider.GetRandomInt()]);
 
-                    var handle = new EventWaitHandle(false, EventResetMode.ManualReset);
-                    var thread = new Thread(() =>
+                    var numOfThreads = stage.VirtualUsers;
+                    var waitHandles = new WaitHandle[numOfThreads];
+
+                    for (var i = 0; i < numOfThreads; i++)
                     {
-                        _webClient.GetAsync(GetRandomUrl(), _cancellationToken);
-                        handle.Set();
-                    });
+                        var j = i;
 
-                    waitHandles[j] = handle;
-                    thread.Start();
+                        var handle = new EventWaitHandle(false, EventResetMode.ManualReset);
+                        var thread = new Thread(async () =>
+                        {
+                            await _httpService.GetAsync(GetRandomUrl(), cancellationToken);
+                            handle.Set();
+                        });
+
+                        waitHandles[j] = handle;
+                        thread.Start();
+                    }
+
+                    WaitHandle.WaitAll(waitHandles);
                 }
-
-                WaitHandle.WaitAll(waitHandles);
             }
+            catch (Exception e)
+            {
+                _logger.LogCritical($"There was an error in running Benchy: {e}");
+            }
+            finally
+            {
+                _summaryReport.TestStart = DateTimeOffset.UtcNow;
+
+                _cancellationTokenSource.Cancel();
+            }
+
+            _summaryReport.IsSuccess = Environment.ExitCode == 0;
         }
-        
-        private string GetRandomUrl()
-        {
-            return _configuration.Urls[_valueProvider.GetNextInt()];
-        }
+
+        private string GetRandomUrl() => _configuration.Urls[_valueProvider.GetRandomInt()];
     }
 }
