@@ -1,7 +1,6 @@
-using System;
 using System.Collections.Generic;
 
-namespace Benchy
+namespace Benchy.Configuration
 {
     public class Configuration
     {

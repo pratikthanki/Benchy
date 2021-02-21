@@ -1,25 +1,25 @@
 using System;
 using Microsoft.Extensions.Options;
 
-namespace Benchy
+namespace Benchy.Helpers
 {
     public interface IValueProvider
     {
-        int GetNextInt();
+        int GetRandomInt();
     }
-    
+
     public class ValueProvider : IValueProvider
     {
         private readonly Random _random;
-        private readonly Configuration _configuration;
+        private readonly Configuration.Configuration _configuration;
 
-        public ValueProvider(IOptions<Configuration> configuration)
+        public ValueProvider(IOptions<Configuration.Configuration> configuration)
         {
             _configuration = configuration.Value;
             _random = new Random(_configuration.RandomSeed);
         }
 
-        public int GetNextInt()
+        public int GetRandomInt()
         {
             return _random.Next(0, _configuration.Urls.Length);
         }

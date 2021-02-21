@@ -3,16 +3,18 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
-namespace Benchy
+namespace Benchy.Helpers
 {
-    public interface IWebClient
+    public interface IHttpService
     {
         Task<HttpResponseMessage> GetAsync(string url, CancellationToken cancellationToken);
     }
 
-    public class WebClient : IWebClient
+    public class HttpService : IHttpService
     {
+        private readonly ILogger<HttpService> _logger;
         private readonly HttpClient _httpClient;
         private readonly TimeSpan timeout = TimeSpan.FromSeconds(10);
 
@@ -21,17 +23,20 @@ namespace Benchy
             AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
         };
 
-        public WebClient()
+        public HttpService(ILogger<HttpService> logger)
         {
+            _logger = logger;
             _httpClient = new HttpClient(httpClientHandler) {Timeout = timeout};
         }
 
         public async Task<HttpResponseMessage> GetAsync(string url, CancellationToken cancellationToken)
         {
-            return await _httpClient.GetAsync(
-                url, 
-                HttpCompletionOption.ResponseHeadersRead, 
+            var request = _httpClient.GetAsync(
+                url,
+                HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken);
+
+            return await request;
         }
     }
 }

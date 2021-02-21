@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
+using Benchy.Configuration;
 
-namespace Benchy
+namespace Benchy.Models
 {
     public class SummaryReport
     {
         public DateTimeOffset TestStart { get; set; }
         public DateTimeOffset TestEnd { get; set; }
+        public bool IsSuccess { get; set; }
         public List<Aggregations> Aggregations { get; set; }
     }
 
@@ -14,11 +16,11 @@ namespace Benchy
     {
         public string Url { get; set; }
         public Stage Stage { get; set; }
-        public ResponseCodes ResponseCodes { get; set; }
-        
-        public double DataReceivedMb { get; set; }
-        public double DataSentMb { get; set; }
-        
+
+        public int Http2xx { get; set; }
+        public int Http4xx { get; set; }
+        public int Http5xx { get; set; }
+
         public double Average { get; set; }
         public double Minimum { get; set; }
         public double Maximum { get; set; }
@@ -31,12 +33,5 @@ namespace Benchy
         public double Percentile95 { get; set; }
         public double Percentile99 { get; set; }
         public double Percentile100 { get; set; }
-    }
-
-    public class ResponseCodes
-    {
-        public int Http2xx { get; set; }
-        public int Http4xx { get; set; }
-        public int Http5xx { get; set; }
     }
 }
