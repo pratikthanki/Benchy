@@ -2,6 +2,7 @@
 using System.Text;
 using System.Threading.Tasks;
 using Benchy.Helpers;
+using Benchy.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
