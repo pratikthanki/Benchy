@@ -8,7 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Benchy
+namespace Benchy.Services
 {
     public class BenchmarkService : IHostedService
     {
@@ -91,29 +91,35 @@ namespace Benchy
             {
                 foreach (var stage in _configuration.Stages)
                 {
-                    var endpoints = Enumerable
+                    var totalRequests = stage.Requests;
+                    
+                    // A set of request tasks 
+                    var requestTasks = Enumerable
                         .Range(0, stage.Requests)
-                        .Select(_ => _configuration.Urls[_valueProvider.GetRandomInt()]);
+                        .Select(_ => _httpService.GetAsync(_valueProvider.GetRandomUrl(), cancellationToken))
+                        .ToList();
 
-                    var numOfThreads = stage.VirtualUsers;
-                    var waitHandles = new WaitHandle[numOfThreads];
-
-                    for (var i = 0; i < numOfThreads; i++)
+                    do
                     {
-                        var j = i;
+                        var concurrentUsers = _valueProvider.GetRandomUserCount(stage.VirtualUsers);
 
-                        var handle = new EventWaitHandle(false, EventResetMode.ManualReset);
-                        var thread = new Thread(async () =>
+                        var requests = requestTasks.Take(concurrentUsers).ToList();
+
+                        //Wait for all the requests to finish
+                        var allTasks = Task.WhenAll(requests);
+                        
+                        try
                         {
-                            await _httpService.GetAsync(GetRandomUrl(), cancellationToken);
-                            handle.Set();
-                        });
+                            await Task.WhenAll(allTasks);
+                        }
+                        catch (Exception)
+                        {
+                            // TODO
+                        }
 
-                        waitHandles[j] = handle;
-                        thread.Start();
-                    }
+                        totalRequests -= concurrentUsers;
 
-                    WaitHandle.WaitAll(waitHandles);
+                    } while (totalRequests > 0);
                 }
             }
             catch (Exception e)
@@ -122,14 +128,12 @@ namespace Benchy
             }
             finally
             {
-                _summaryReport.TestStart = DateTimeOffset.UtcNow;
+                _summaryReport.TestEnd = DateTimeOffset.UtcNow;
 
                 _cancellationTokenSource.Cancel();
             }
 
             _summaryReport.IsSuccess = Environment.ExitCode == 0;
         }
-
-        private string GetRandomUrl() => _configuration.Urls[_valueProvider.GetRandomInt()];
     }
 }
