@@ -7,7 +7,7 @@ namespace Benchy.Models
     {
         public Guid Id { get; set; }
         public string Url { get; set; }
-        private HttpStatusCode StatusCode { get; set; }
+        public HttpStatusCode StatusCode { get; set; }
         public double DurationMs { get; set; }
     }
 }

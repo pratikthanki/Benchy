@@ -2,6 +2,7 @@
 using System.Text;
 using System.Threading.Tasks;
 using Benchy.Helpers;
+using Benchy.Reporters;
 using Benchy.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,6 +47,7 @@ namespace Benchy
                         .AddTransient<IStageHandler, StageHandler>()
                         .AddTransient<IHttpService, HttpService>()
                         .AddTransient<ITimeHandler, TimeHandler>()
+                        .AddTransient<ICalculationService, CalculationService>()
                         .Configure<Configuration.Configuration>(hostContext.Configuration);
                 })
                 .ConfigureLogging((hostContext, logging) =>
