@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Benchy.Configuration;
 using Benchy.Helpers;
-using Benchy.Models;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -15,10 +14,9 @@ namespace Benchy.Services
     public class BenchmarkService : IHostedService
     {
         private readonly ILogger<BenchmarkService> _logger;
-        private readonly IHttpService _httpService;
-        private readonly IValueProvider _valueProvider;
-        private readonly ITimeHandler _timeHandler;
         private readonly Configuration.Configuration _configuration;
+        private readonly IValueProvider _valueProvider;
+        private readonly IHttpService _httpService;
         private readonly ICalculationService _calculationService;
         private readonly CancellationTokenSource _cancellationTokenSource;
 
@@ -26,18 +24,15 @@ namespace Benchy.Services
 
         public BenchmarkService(
             ILogger<BenchmarkService> logger,
-            IHttpService httpService,
-            IValueProvider valueProvider,
             IOptions<Configuration.Configuration> configuration,
-            IHostApplicationLifetime appLifetime, 
-            ITimeHandler timeHandler, 
-            ICalculationService calculationService)
+            IHostApplicationLifetime appLifetime,
+            ICalculationService calculationService,
+            IValueProvider valueProvider, IHttpService httpService)
         {
             _logger = logger;
-            _httpService = httpService;
-            _valueProvider = valueProvider;
-            _timeHandler = timeHandler;
             _calculationService = calculationService;
+            _valueProvider = valueProvider;
+            _httpService = httpService;
             _configuration = configuration.Value;
 
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(appLifetime.ApplicationStopping);
@@ -96,8 +91,13 @@ namespace Benchy.Services
             {
                 foreach (var stage in _configuration.Stages)
                 {
-                    await ProcessStage(stage, cancellationToken);
+                    await ProcessStage(stage, _calculationService, cancellationToken);
+
+                    await Task.Delay(_configuration.SecondsDelayBetweenStages * 1000, cancellationToken);
                 }
+
+                _calculationService.CreateSummary();
+                _calculationService.SummaryReport.Status = TaskStatus.Success;
             }
             catch (Exception e)
             {
@@ -107,66 +107,53 @@ namespace Benchy.Services
             finally
             {
                 _calculationService.SummaryReport.TestEnd = DateTimeOffset.UtcNow;
-
                 _cancellationTokenSource.Cancel();
             }
-
-            _calculationService.SummaryReport.Status =
-                Environment.ExitCode == 0 ? TaskStatus.Success : TaskStatus.Failed;
-
-            _calculationService.CreateSummary();
+        }
+        
+        private string GetRandomUrl()
+        {
+            return _configuration.Urls[_valueProvider.GetRandomInt(_configuration.Urls.Length)];
         }
 
-        private async Task ProcessStage(Stage stage, CancellationToken cancellationToken)
+        private int GetRandomUserCount(int concurrentUsers)
+        {
+            return _valueProvider.GetRandomInt(concurrentUsers) + 1;
+        }
+
+        private async Task ProcessStage(
+            Stage stage,
+            ICalculationService calculationService,
+            CancellationToken cancellationToken)
         {
             var totalRequests = stage.Requests;
 
-            // A set of request tasks 
-            var requestTasks = Enumerable
-                .Range(0, stage.Requests)
-                .AsParallel()
-                .Select(_ => RecordRequestAsync(_valueProvider.GetRandomUrl(), cancellationToken))
-                .ToList();
-            
+            _logger.LogInformation($"Running requests: {totalRequests}");
+
             do
             {
-                var concurrentUsers = _valueProvider.GetRandomUserCount(stage.VirtualUsers);
-                var requests = requestTasks.Take(concurrentUsers).ToList();
+                var concurrentUsers = GetRandomUserCount(stage.VirtualUsers);
 
-                foreach (var request in requests)
-                {
-                    requestTasks.Remove(request);
-                }
+                // A set of request tasks 
+                var requests = Enumerable
+                    .Range(0, concurrentUsers)
+                    .Select(_ => _httpService.RecordRequestAsync(GetRandomUrl(), cancellationToken))
+                    .ToList();
+
+                _logger.LogInformation($"Running total requests: {concurrentUsers}");
 
                 await Task.WhenAll(requests);
 
                 foreach (var request in requests)
                 {
-                    _calculationService.RequestReports.Add(await request);
+                    calculationService.RequestReports.Add(await request);
                 }
 
                 totalRequests -= concurrentUsers;
-                
+
+                _logger.LogInformation($"Requests remaining: {totalRequests}");
+
             } while (totalRequests > 0);
-        }
-
-        private async Task<RequestReport> RecordRequestAsync(string url, CancellationToken cancellationToken)
-        {
-            var requestTask = _httpService.GetAsync(_valueProvider.GetRandomUrl(), cancellationToken);
-
-            _timeHandler.Start();
-
-            var request = await requestTask;
-
-            _timeHandler.Stop();
-
-            return new RequestReport()
-            {
-                Id = new Guid(),
-                Url = url,
-                StatusCode = request.StatusCode,
-                DurationMs = _timeHandler.ElapsedMilliseconds()
-            };
         }
     }
 }

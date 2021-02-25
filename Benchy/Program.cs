@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Text;
 using System.Threading.Tasks;
 using Benchy.Helpers;
-using Benchy.Reporters;
 using Benchy.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,8 +15,6 @@ namespace Benchy
         [STAThread]
         static async Task Main(string[] args)
         {
-            Console.OutputEncoding = Encoding.UTF8;
-
             try
             {
                 await CreateHostBuilder(args).Build().RunAsync();
@@ -44,13 +40,12 @@ namespace Benchy
                     services
                         .AddHostedService<BenchmarkService>()
                         .AddSingleton<IValueProvider, ValueProvider>()
-                        .AddTransient<IStageHandler, StageHandler>()
                         .AddTransient<IHttpService, HttpService>()
                         .AddTransient<ITimeHandler, TimeHandler>()
                         .AddTransient<ICalculationService, CalculationService>()
                         .Configure<Configuration.Configuration>(hostContext.Configuration);
                 })
-                .ConfigureLogging((hostContext, logging) =>
+                .ConfigureLogging(logging =>
                 {
                     logging
                         .ClearProviders()

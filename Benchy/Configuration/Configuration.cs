@@ -5,6 +5,11 @@ namespace Benchy.Configuration
     public class Configuration
     {
         /// <summary>
+        /// Set the mode for the service to run as
+        /// </summary>
+        public Mode Mode { get; set; }
+        
+        /// <summary>
         /// List of urls 
         /// </summary>
         public string[] Urls { get; set; }
@@ -51,5 +56,11 @@ namespace Benchy.Configuration
         /// Concurrent (user) requests to make 
         /// </summary>
         public int VirtualUsers { get; set; }
+    }
+
+    public enum Mode
+    {
+        Worker = 0,
+        Director = 1
     }
 }

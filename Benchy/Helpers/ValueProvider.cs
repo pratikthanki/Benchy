@@ -5,8 +5,7 @@ namespace Benchy.Helpers
 {
     public interface IValueProvider
     {
-        string GetRandomUrl();
-        int GetRandomUserCount(int concurrentUsers);
+        int GetRandomInt(int upperRange);
     }
 
     public class ValueProvider : IValueProvider
@@ -20,17 +19,7 @@ namespace Benchy.Helpers
             _random = new Random(_configuration.RandomSeed);
         }
 
-        public string GetRandomUrl()
-        {
-            return _configuration.Urls[GetRandomInt(_configuration.Urls.Length)];
-        }
-
-        public int GetRandomUserCount(int concurrentUsers)
-        {
-            return GetRandomInt(concurrentUsers) + 1;
-        }
-
-        private int GetRandomInt(int upperRange)
+        public int GetRandomInt(int upperRange)
         {
             return _random.Next(0, upperRange);
         }

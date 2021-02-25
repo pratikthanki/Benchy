@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using Benchy.Models;
 
 namespace Benchy.Services
@@ -28,20 +27,20 @@ namespace Benchy.Services
         {
             var requestsPerUrl = RequestReports
                 .GroupBy(x => x.Url)
-                .ToDictionary(x => x.Key, x => Summarize(x.ToList()));
+                .ToDictionary(x => x.Key, x => x.ToList());
 
-            SummaryReport.RequestSummary = requestsPerUrl.Select(x => x.Value);
+            SummaryReport.RequestSummary = requestsPerUrl.Select(x => Summarize(x.Value));
         }
 
-        private StageSummary Summarize(List<RequestReport> requests)
+        private static StageSummary Summarize(IList<RequestReport> requests)
         {
             return new StageSummary()
             {
                 Url = requests.First().Url,
-                Http2xx = requests.Count(x => RoundStatusCodeDown(x.StatusCode) == 200),
-                Http3xx = requests.Count(x => RoundStatusCodeDown(x.StatusCode) == 300),
-                Http4xx = requests.Count(x => RoundStatusCodeDown(x.StatusCode) == 400),
-                Http5xx = requests.Count(x => RoundStatusCodeDown(x.StatusCode) == 500),
+                Http2xx = requests.Count(x => x.RoundStatusCode() == 200),
+                Http3xx = requests.Count(x => x.RoundStatusCode() == 300),
+                Http4xx = requests.Count(x => x.RoundStatusCode() == 400),
+                Http5xx = requests.Count(x => x.RoundStatusCode() == 500),
                 Average = requests.Average(x => x.DurationMs),
                 Minimum = requests.Min(x => x.DurationMs),
                 Maximum = requests.Max(x => x.DurationMs),
@@ -58,17 +57,22 @@ namespace Benchy.Services
             };
         }
 
-        private double CalculatePercentile(IList<RequestReport> responses, double percentile)
+        private static double CalculatePercentile(IEnumerable<RequestReport> responses, double percentile)
         {
-            var durations = responses.OrderBy(x => x.DurationMs).Select(x => x.DurationMs).ToList();
-            var n = (int) Math.Round(durations.Count * percentile + 0.5, 0);
+            var durations = responses.Select(x => x.DurationMs).Distinct().ToArray();
 
-            return durations[n - 1];
-        }
+            Array.Sort(durations);
 
-        private int RoundStatusCodeDown(HttpStatusCode statusCode)
-        {
-            return (int) Math.Floor((int) statusCode / 100.0) * 100;
+            var realIndex = percentile * (durations.Length - 1);
+            var index = (int) realIndex;
+            var frac = realIndex - index;
+
+            if (index + 1 < durations.Length)
+            {
+                return durations[index] * (1 - frac) + durations[index + 1] * frac;
+            }
+
+            return durations[index];
         }
     }
 }

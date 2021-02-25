@@ -14,11 +14,22 @@ namespace Benchy.Helpers
 
     public class TimeHandler : ITimeHandler
     {
-        private readonly Stopwatch _stopwatch = new Stopwatch();
+        private readonly Stopwatch _stopwatch;
 
-        public void Start() => _stopwatch.Restart();
+        public TimeHandler()
+        {
+            _stopwatch = new Stopwatch();
+        }
 
-        public void Stop() => _stopwatch.Stop();
+        public void Start()
+        {
+            _stopwatch.Restart();
+        }
+
+        public void Stop()
+        {
+            _stopwatch.Stop();
+        }
 
         public long ElapsedMilliseconds() => _stopwatch.ElapsedMilliseconds;
 
