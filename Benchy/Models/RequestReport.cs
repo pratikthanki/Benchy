@@ -16,5 +16,10 @@ namespace Benchy.Models
         {
             return (int) Math.Floor((int) StatusCode / 100.0) * 100;
         }
+
+        public override string ToString()
+        {
+            return $"Id: {Id}; Url: {Url}";
+        }
     }
 }

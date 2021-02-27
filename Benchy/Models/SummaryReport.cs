@@ -9,11 +9,12 @@ namespace Benchy.Models
         public DateTimeOffset TestStart { get; set; }
         public DateTimeOffset TestEnd { get; set; }
         public TaskStatus Status { get; set; }
-        public IEnumerable<StageSummary> RequestSummary { get; set; }
+        public IEnumerable<StageSummary> StageSummary { get; set; }
     }
 
     public class StageSummary : Stage
     {
+        public int StageId { get; set; }
         public string Url { get; set; }
         public int Http2xx { get; set; }
         public int Http3xx { get; set; }
@@ -33,11 +34,5 @@ namespace Benchy.Models
         public double Percentile95 { get; set; }
         public double Percentile98 { get; set; }
         public double Percentile99 { get; set; }
-    }
-
-    public enum TaskStatus
-    {
-        Failed = 0,
-        Success = 1
     }
 }

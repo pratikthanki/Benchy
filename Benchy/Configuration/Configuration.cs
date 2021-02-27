@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Benchy.Models;
 
 namespace Benchy.Configuration
 {
@@ -56,11 +57,5 @@ namespace Benchy.Configuration
         /// Concurrent (user) requests to make 
         /// </summary>
         public int VirtualUsers { get; set; }
-    }
-
-    public enum Mode
-    {
-        Worker = 0,
-        Director = 1
     }
 }
