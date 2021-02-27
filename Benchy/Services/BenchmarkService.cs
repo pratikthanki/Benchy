@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Benchy.Configuration;
 using Benchy.Helpers;
+using Benchy.Reporters;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -16,8 +17,9 @@ namespace Benchy.Services
         private readonly ILogger<BenchmarkService> _logger;
         private readonly Configuration.Configuration _configuration;
         private readonly IValueProvider _valueProvider;
-        private readonly IHttpService _httpService;
-        private readonly ICalculationService _calculationService;
+        private readonly IReporter _reporter;
+        private readonly IHttpClient _httpClient;
+        private readonly ICalculationHandler _calculationHandler;
         private readonly CancellationTokenSource _cancellationTokenSource;
 
         private Task _task;
@@ -26,13 +28,16 @@ namespace Benchy.Services
             ILogger<BenchmarkService> logger,
             IOptions<Configuration.Configuration> configuration,
             IHostApplicationLifetime appLifetime,
-            ICalculationService calculationService,
-            IValueProvider valueProvider, IHttpService httpService)
+            ICalculationHandler calculationHandler,
+            IValueProvider valueProvider, 
+            IHttpClient httpClient, 
+            IReporter reporter)
         {
             _logger = logger;
-            _calculationService = calculationService;
+            _calculationHandler = calculationHandler;
             _valueProvider = valueProvider;
-            _httpService = httpService;
+            _httpClient = httpClient;
+            _reporter = reporter;
             _configuration = configuration.Value;
 
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(appLifetime.ApplicationStopping);
@@ -85,32 +90,36 @@ namespace Benchy.Services
             // TODO: Would it be helpful to log throughout the benchmark so it is clear the application is alive?
             // _ = Task.Run(() => { }, cancellationToken);
 
-            _calculationService.SummaryReport.TestStart = DateTimeOffset.UtcNow;
+            _calculationHandler.SummaryReport.TestStart = DateTimeOffset.UtcNow;
 
             try
             {
                 foreach (var stage in _configuration.Stages)
                 {
-                    await ProcessStage(stage, _calculationService, cancellationToken);
+                    await ProcessStage(stage, _calculationHandler, cancellationToken);
 
                     await Task.Delay(_configuration.SecondsDelayBetweenStages * 1000, cancellationToken);
                 }
 
-                _calculationService.CreateSummary();
-                _calculationService.SummaryReport.Status = TaskStatus.Success;
+                _calculationHandler.SummaryReport.TestEnd = DateTimeOffset.UtcNow;
+
+                _calculationHandler.CreateSummary();
+
+                await _reporter.Write(_calculationHandler.SummaryReport);
             }
             catch (Exception e)
             {
                 _logger.LogCritical($"There was an error in running Benchy: {e}");
-                _calculationService.SummaryReport.Status = TaskStatus.Failed;
+                _calculationHandler.SummaryReport.Status = TaskStatus.Failed;
             }
             finally
             {
-                _calculationService.SummaryReport.TestEnd = DateTimeOffset.UtcNow;
                 _cancellationTokenSource.Cancel();
             }
+
+            _calculationHandler.SummaryReport.Status = TaskStatus.Success;
         }
-        
+
         private string GetRandomUrl()
         {
             return _configuration.Urls[_valueProvider.GetRandomInt(_configuration.Urls.Length)];
@@ -123,7 +132,7 @@ namespace Benchy.Services
 
         private async Task ProcessStage(
             Stage stage,
-            ICalculationService calculationService,
+            ICalculationHandler calculationHandler,
             CancellationToken cancellationToken)
         {
             var totalRequests = stage.Requests;
@@ -134,22 +143,21 @@ namespace Benchy.Services
             {
                 var concurrentUsers = GetRandomUserCount(stage.VirtualUsers);
 
+                var count = Math.Min(concurrentUsers, totalRequests);
+
                 // A set of request tasks 
                 var requests = Enumerable
-                    .Range(0, concurrentUsers)
-                    .Select(_ => _httpService.RecordRequestAsync(GetRandomUrl(), cancellationToken))
+                    .Range(0, count)
+                    .Select(_ => _httpClient.RecordRequestAsync(GetRandomUrl(), cancellationToken))
                     .ToList();
 
-                _logger.LogInformation($"Running total requests: {concurrentUsers}");
+                _logger.LogInformation($"Running total requests: {count}");
 
                 await Task.WhenAll(requests);
 
-                foreach (var request in requests)
-                {
-                    calculationService.RequestReports.Add(await request);
-                }
+                requests.ForEach(async request => { calculationHandler.RequestReports.Add(await request); });
 
-                totalRequests -= concurrentUsers;
+                totalRequests -= count;
 
                 _logger.LogInformation($"Requests remaining: {totalRequests}");
 
