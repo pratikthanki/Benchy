@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Benchy.Helpers;
+using Benchy.Reporters;
 using Benchy.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,9 +41,10 @@ namespace Benchy
                     services
                         .AddHostedService<BenchmarkService>()
                         .AddSingleton<IValueProvider, ValueProvider>()
-                        .AddTransient<IHttpService, HttpService>()
+                        .AddTransient<IHttpClient, HttpClient>()
                         .AddTransient<ITimeHandler, TimeHandler>()
-                        .AddTransient<ICalculationService, CalculationService>()
+                        .AddTransient<ICalculationHandler, CalculationHandler>()
+                        .AddTransient<IReporter, JsonReporter>()
                         .Configure<Configuration.Configuration>(hostContext.Configuration);
                 })
                 .ConfigureLogging(logging =>

@@ -1,14 +1,24 @@
-using System.Collections.Generic;
+using System;
 using System.Threading.Tasks;
 using Benchy.Models;
+using Newtonsoft.Json;
 
 namespace Benchy.Reporters
 {
     public class JsonReporter : IReporter
     {
-        public Task<bool> Write(IEnumerable<SummaryReport> report)
+        public async Task Write(SummaryReport report)
         {
-            throw new System.NotImplementedException();
+            var json = JsonConvert.SerializeObject(report);
+
+            try
+            {
+                await System.IO.File.WriteAllTextAsync(@"data.json", json);
+            }
+            catch (Exception)
+            {
+                // do nothing
+            }
         }
     }
 }
