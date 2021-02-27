@@ -9,7 +9,12 @@ namespace Benchy.Configuration
         /// Set the mode for the service to run as
         /// </summary>
         public Mode Mode { get; set; }
-        
+
+        /// <summary>
+        /// Set the output report type, options are: Json and Csv
+        /// </summary>
+        public ReportType ReportType { get; set; }
+
         /// <summary>
         /// List of urls 
         /// </summary>

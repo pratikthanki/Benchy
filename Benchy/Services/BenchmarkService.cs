@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Benchy.Configuration;
 using Benchy.Helpers;
 using Benchy.Reporters;
 using Microsoft.Extensions.Hosting;
@@ -90,7 +89,7 @@ namespace Benchy.Services
             // TODO: Would it be helpful to log throughout the benchmark so it is clear the application is alive?
             // _ = Task.Run(() => { }, cancellationToken);
 
-            _calculationHandler.SummaryReport.TestStart = DateTimeOffset.UtcNow;
+            _calculationHandler.LogStart();
 
             try
             {
@@ -100,8 +99,6 @@ namespace Benchy.Services
 
                     await Task.Delay(_configuration.SecondsDelayBetweenStages * 1000, cancellationToken);
                 }
-
-                _calculationHandler.SummaryReport.TestEnd = DateTimeOffset.UtcNow;
 
                 _calculationHandler.CreateSummary();
 
@@ -114,6 +111,8 @@ namespace Benchy.Services
             }
             finally
             {
+                _calculationHandler.LogEnd();
+
                 _cancellationTokenSource.Cancel();
             }
 
@@ -151,7 +150,7 @@ namespace Benchy.Services
 
                 await Task.WhenAll(requests);
 
-                requests.ForEach(async request => { _calculationHandler.RequestReports.Add(await request); });
+                requests.ForEach(async request => { _calculationHandler.AddRequestReport(await request); });
 
                 totalRequests -= count;
 
