@@ -23,7 +23,6 @@ namespace Benchy.Models
         public double Average { get; set; }
         public double Minimum { get; set; }
         public double Maximum { get; set; }
-        public double Median { get; set; }
         public double StdDev { get; set; }
         public double Percentile50 { get; set; }
         public double Percentile66 { get; set; }

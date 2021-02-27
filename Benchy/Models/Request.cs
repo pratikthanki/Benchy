@@ -14,7 +14,6 @@ namespace Benchy.Models
         public string Body { get; set; }
         public Dictionary<string, string> Headers { get; set; }
 
-        //TODO
         public HttpWebRequest BuildRequest()
         {
             var request = (HttpWebRequest) WebRequest.Create(Url);
