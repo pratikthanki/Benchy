@@ -3,22 +3,21 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Benchy.Helpers;
 using Benchy.Models;
 using Microsoft.Extensions.Logging;
 
-namespace Benchy.Services
+namespace Benchy.Helpers
 {
-    public interface IHttpService
+    public interface IHttpClient
     {
         Task<RequestReport> RecordRequestAsync(string url, CancellationToken cancellationToken);
     }
 
-    public class HttpService : IHttpService
+    public class HttpClient : IHttpClient
     {
-        private readonly ILogger<HttpService> _logger;
+        private readonly ILogger<HttpClient> _logger;
         private readonly ITimeHandler _timeHandler;
-        private readonly HttpClient _httpClient;
+        private readonly System.Net.Http.HttpClient _httpClient;
         private readonly TimeSpan timeout = TimeSpan.FromSeconds(10);
 
         private readonly HttpClientHandler httpClientHandler = new()
@@ -26,11 +25,11 @@ namespace Benchy.Services
             AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
         };
 
-        public HttpService(ILogger<HttpService> logger, ITimeHandler timeHandler)
+        public HttpClient(ILogger<HttpClient> logger, ITimeHandler timeHandler)
         {
             _logger = logger;
             _timeHandler = timeHandler;
-            _httpClient = new HttpClient(httpClientHandler) {Timeout = timeout};
+            _httpClient = new System.Net.Http.HttpClient(httpClientHandler) {Timeout = timeout};
         }
 
         public async Task<RequestReport> RecordRequestAsync(string url, CancellationToken cancellationToken)
@@ -41,6 +40,8 @@ namespace Benchy.Services
                 Url = url,
                 Start = DateTime.UtcNow
             };
+
+            _logger.LogInformation($"Sending request: {report}");
 
             _timeHandler.Start();
 
