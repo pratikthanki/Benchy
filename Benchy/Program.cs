@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ColoredConsole;
+using Microsoft.Extensions.Logging.Console;
 
 namespace Benchy
 {
@@ -52,8 +53,15 @@ namespace Benchy
                     logging
                         .ClearProviders()
                         .SetMinimumLevel(LogLevel.Warning)
-                        .AddDebug()
-                        .AddConsole();
+                        .AddConsole()
+                        .AddSimpleConsole(options =>
+                        {
+                            options.IncludeScopes = true;
+                            options.SingleLine = true;
+                            options.TimestampFormat = "HH:mm:ss ";
+                            options.UseUtcTimestamp = true;
+                            options.ColorBehavior = LoggerColorBehavior.Enabled;
+                        });
                 })
                 .UseConsoleLifetime();
         }
