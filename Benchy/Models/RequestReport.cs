@@ -6,6 +6,7 @@ namespace Benchy.Models
     public class RequestReport
     {
         public Guid Id { get; set; }
+        public int StageId { get; set; }
         public string Url { get; set; }
         public HttpStatusCode StatusCode { get; set; }
         public long DurationMs { get; set; }

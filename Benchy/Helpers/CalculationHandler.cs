@@ -6,6 +6,7 @@ namespace Benchy.Helpers
 {
     public interface ICalculationHandler
     {
+        // TODO: Replace nature of access with methods instead
         SummaryReport SummaryReport { get; set; }
         List<RequestReport> RequestReports { get; set; }
         void CreateSummary();
@@ -24,11 +25,10 @@ namespace Benchy.Helpers
 
         public void CreateSummary()
         {
-            var requestsPerUrl = RequestReports
-                .GroupBy(x => x.Url)
-                .ToDictionary(x => x.Key, x => x.ToList());
-
-            SummaryReport.StageSummary = requestsPerUrl.Select(x => Summarize(x.Value));
+            SummaryReport.StageSummary = RequestReports
+                .GroupBy(x => (x.Url, x.StageId))
+                .ToDictionary(x => x.Key, x => x.ToList())
+                .Select(x => Summarize(x.Value));
         }
 
         private static StageSummary Summarize(IList<RequestReport> requests)
@@ -55,6 +55,7 @@ namespace Benchy.Helpers
                 Percentile99 = CalculatePercentile(durations, 0.99),
 
                 // TODO 
+                StageId = requests.First().StageId,
                 Median = 0,
                 StdDev = 0
             };

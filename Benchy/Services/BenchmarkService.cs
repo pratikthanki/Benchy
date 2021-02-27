@@ -29,8 +29,8 @@ namespace Benchy.Services
             IOptions<Configuration.Configuration> configuration,
             IHostApplicationLifetime appLifetime,
             ICalculationHandler calculationHandler,
-            IValueProvider valueProvider, 
-            IHttpClient httpClient, 
+            IValueProvider valueProvider,
+            IHttpClient httpClient,
             IReporter reporter)
         {
             _logger = logger;
@@ -94,9 +94,9 @@ namespace Benchy.Services
 
             try
             {
-                foreach (var stage in _configuration.Stages)
+                for (var stage = 0; stage < _configuration.Stages.Count; stage++)
                 {
-                    await ProcessStage(stage, _calculationHandler, cancellationToken);
+                    await ProcessStage(stage, cancellationToken);
 
                     await Task.Delay(_configuration.SecondsDelayBetweenStages * 1000, cancellationToken);
                 }
@@ -130,32 +130,28 @@ namespace Benchy.Services
             return _valueProvider.GetRandomInt(concurrentUsers) + 1;
         }
 
-        private async Task ProcessStage(
-            Stage stage,
-            ICalculationHandler calculationHandler,
-            CancellationToken cancellationToken)
+        private async Task ProcessStage(int stageId, CancellationToken cancellationToken)
         {
+            var stage = _configuration.Stages[stageId];
             var totalRequests = stage.Requests;
 
             _logger.LogInformation($"Running requests: {totalRequests}");
 
             do
             {
-                var concurrentUsers = GetRandomUserCount(stage.VirtualUsers);
-
-                var count = Math.Min(concurrentUsers, totalRequests);
+                var count = Math.Min(GetRandomUserCount(stage.VirtualUsers), totalRequests);
 
                 // A set of request tasks 
                 var requests = Enumerable
                     .Range(0, count)
-                    .Select(_ => _httpClient.RecordRequestAsync(GetRandomUrl(), cancellationToken))
+                    .Select(_ => _httpClient.RecordRequestAsync(GetRandomUrl(), stageId, cancellationToken))
                     .ToList();
 
                 _logger.LogInformation($"Running total requests: {count}");
 
                 await Task.WhenAll(requests);
 
-                requests.ForEach(async request => { calculationHandler.RequestReports.Add(await request); });
+                requests.ForEach(async request => { _calculationHandler.RequestReports.Add(await request); });
 
                 totalRequests -= count;
 
