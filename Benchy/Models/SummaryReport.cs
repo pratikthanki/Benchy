@@ -20,7 +20,6 @@ namespace Benchy.Models
         public int Http3xx { get; set; }
         public int Http4xx { get; set; }
         public int Http5xx { get; set; }
-        public double RequestsPerSecond { get; set; }
         public double Average { get; set; }
         public double Minimum { get; set; }
         public double Maximum { get; set; }

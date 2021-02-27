@@ -43,11 +43,8 @@ namespace Benchy.Helpers
                 Http4xx = requests.Count(x => x.RoundStatusCode() == 400),
                 Http5xx = requests.Count(x => x.RoundStatusCode() == 500),
                 Average = requests.Average(x => x.DurationMs),
-                RequestsPerSecond = CalculateRequestsPerSecond(requests),
                 Minimum = requests.Min(x => x.DurationMs),
                 Maximum = requests.Max(x => x.DurationMs),
-                Median = 0,
-                StdDev = 0,
                 Percentile50 = CalculatePercentile(durations, 0.5),
                 Percentile66 = CalculatePercentile(durations, 0.66),
                 Percentile75 = CalculatePercentile(durations, 0.75),
@@ -55,7 +52,11 @@ namespace Benchy.Helpers
                 Percentile90 = CalculatePercentile(durations, 0.9),
                 Percentile95 = CalculatePercentile(durations, 0.95),
                 Percentile98 = CalculatePercentile(durations, 0.98),
-                Percentile99 = CalculatePercentile(durations, 0.99)
+                Percentile99 = CalculatePercentile(durations, 0.99),
+
+                // TODO 
+                Median = 0,
+                StdDev = 0
             };
         }
 
@@ -71,17 +72,6 @@ namespace Benchy.Helpers
             }
 
             return durations[index];
-        }
-
-        private static double CalculateRequestsPerSecond(IList<RequestReport> requests)
-        {
-            var startTimes = requests.Select(x => x.Start).ToList();
-            var first = startTimes.Min();
-            var last = startTimes.Max();
-
-            var duration = (last - first).TotalSeconds;
-
-            return requests.Count / duration;
         }
     }
 }
