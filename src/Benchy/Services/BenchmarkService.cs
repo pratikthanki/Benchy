@@ -89,34 +89,31 @@ namespace Benchy.Services
             // TODO: Would it be helpful to log throughout the benchmark so it is clear the application is alive?
             // _ = Task.Run(() => { }, cancellationToken);
 
-            _calculationHandler.LogStart();
-
             try
             {
+                _calculationHandler.LogTestStart();
+
                 for (var stage = 0; stage < _configuration.Stages.Count; stage++)
                 {
                     await ProcessStage(stage, cancellationToken);
 
                     await Task.Delay(_configuration.SecondsDelayBetweenStages * 1000, cancellationToken);
                 }
-
-                _calculationHandler.CreateSummary();
-
-                await _reporter.Write(_calculationHandler.SummaryReport);
             }
             catch (Exception e)
             {
                 _logger.LogCritical($"There was an error in running Benchy: {e}");
-                _calculationHandler.SummaryReport.Status = TaskStatus.Failed;
+                _calculationHandler.SetStatus(TaskStatus.Failed);
             }
             finally
             {
-                _calculationHandler.LogEnd();
-
+                _calculationHandler.LogTestEnd();
                 _cancellationTokenSource.Cancel();
             }
+            
+            _calculationHandler.SetStatus(TaskStatus.Success);
 
-            _calculationHandler.SummaryReport.Status = TaskStatus.Success;
+            await _reporter.Write(_calculationHandler.CreateSummaryReport());
         }
 
         private string GetRandomUrl()

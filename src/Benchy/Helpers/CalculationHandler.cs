@@ -7,52 +7,55 @@ namespace Benchy.Helpers
 {
     public interface ICalculationHandler
     {
-        SummaryReport SummaryReport { get; }
-        void CreateSummary();
-        void LogStart();
-        void LogEnd();
-        void AddRequestReport(RequestReport requestReport);
+        void LogTestStart();
+        void LogTestEnd();
+        void AddRequestReport(RequestSummary requestSummary);
+        void SetStatus(TaskStatus taskStatus);
+        SummaryReport CreateSummaryReport();
     }
 
     public class CalculationHandler : ICalculationHandler
     {
-        public SummaryReport SummaryReport { get; private set; }
-        private readonly List<RequestReport> RequestReports;
+        private readonly SummaryReport SummaryReport;
+        private readonly List<RequestSummary> RequestReports;
 
         public CalculationHandler()
         {
             SummaryReport = new SummaryReport();
-            RequestReports = new List<RequestReport>();
+            RequestReports = new List<RequestSummary>();
         }
 
-        public void CreateSummary()
+        public void LogTestStart() => SummaryReport.TestStart = DateTimeOffset.UtcNow;
+        public void LogTestEnd() => SummaryReport.TestEnd = DateTimeOffset.UtcNow;
+        public void AddRequestReport(RequestSummary requestSummary) => RequestReports.Add(requestSummary);
+        public void SetStatus(TaskStatus taskStatus) => SummaryReport.Status = taskStatus;
+
+        public SummaryReport CreateSummaryReport()
         {
             SummaryReport.StageSummary = RequestReports
                 .GroupBy(x => (x.Url, x.StageId))
                 .ToDictionary(x => x.Key, x => x.ToList())
                 .Select(x => Summarize(x.Value));
+
+            return SummaryReport;
         }
 
-        public void LogStart() => SummaryReport.TestStart = DateTimeOffset.UtcNow;
-        public void LogEnd() => SummaryReport.TestEnd = DateTimeOffset.UtcNow;
-        public void AddRequestReport(RequestReport requestReport) => RequestReports.Add(requestReport);
-
-        private static StageSummary Summarize(IList<RequestReport> requests)
+        private static StageSummary Summarize(IList<RequestSummary> requests)
         {
             var durations = requests.Select(x => x.DurationMs).OrderBy(_ => _).ToArray();
+
             var statusCodes = requests
                 .GroupBy(x => x.RoundStatusCode())
                 .ToDictionary(x => x.Key, x => x.ToList().Count);
 
-            var count = 0;
-            return new StageSummary()
+            return new StageSummary
             {
                 StageId = requests.First().StageId,
                 Url = requests.First().Url,
-                Http2xx = statusCodes.TryGetValue(200, out count) ? count : 0,
-                Http3xx = statusCodes.TryGetValue(300, out count) ? count : 0,
-                Http4xx = statusCodes.TryGetValue(400, out count) ? count : 0,
-                Http5xx = statusCodes.TryGetValue(500, out count) ? count : 0,
+                Http2xx = statusCodes.TryGetValue(200, out var count2xx) ? count2xx : 0,
+                Http3xx = statusCodes.TryGetValue(300, out var count3xx) ? count3xx : 0,
+                Http4xx = statusCodes.TryGetValue(400, out var count4xx) ? count4xx : 0,
+                Http5xx = statusCodes.TryGetValue(500, out var count5xx) ? count5xx : 0,
                 Average = Math.Round(requests.Average(x => x.DurationMs), 2),
                 Minimum = requests.Min(x => x.DurationMs),
                 Maximum = requests.Max(x => x.DurationMs),

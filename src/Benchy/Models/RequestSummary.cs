@@ -3,7 +3,7 @@ using System.Net;
 
 namespace Benchy.Models
 {
-    public class RequestReport
+    public class RequestSummary
     {
         public Guid Id { get; set; }
         public int StageId { get; set; }

@@ -10,7 +10,7 @@ namespace Benchy.Helpers
 {
     public interface IHttpClient
     {
-        Task<RequestReport> RecordRequestAsync(
+        Task<RequestSummary> RecordRequestAsync(
             string url,
             int stageId,
             CancellationToken cancellationToken);
@@ -35,12 +35,12 @@ namespace Benchy.Helpers
             _httpClient = new System.Net.Http.HttpClient(httpClientHandler) {Timeout = timeout};
         }
 
-        public async Task<RequestReport> RecordRequestAsync(
+        public async Task<RequestSummary> RecordRequestAsync(
             string url,
             int stageId,
             CancellationToken cancellationToken)
         {
-            var report = new RequestReport()
+            var report = new RequestSummary()
             {
                 Id = Guid.NewGuid(),
                 StageId = stageId,

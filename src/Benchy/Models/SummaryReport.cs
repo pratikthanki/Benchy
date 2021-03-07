@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using Benchy.Configuration;
+using System.Text.Json.Serialization;
+using Newtonsoft.Json.Converters;
 
 namespace Benchy.Models
 {
@@ -8,11 +9,13 @@ namespace Benchy.Models
     {
         public DateTimeOffset TestStart { get; set; }
         public DateTimeOffset TestEnd { get; set; }
+
+        [JsonConverter(typeof(StringEnumConverter))]
         public TaskStatus Status { get; set; }
         public IEnumerable<StageSummary> StageSummary { get; set; }
     }
 
-    public class StageSummary : Stage
+    public class StageSummary
     {
         public int StageId { get; set; }
         public string Url { get; set; }
