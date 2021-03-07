@@ -14,7 +14,6 @@ namespace Benchy
 {
     class Program
     {
-        [STAThread]
         static async Task Main(string[] args)
         {
             try

@@ -49,6 +49,11 @@ namespace Benchy.Configuration
         /// Set seed to create reproducible test runs
         /// </summary>
         public int RandomSeed { get; set; }
+        
+        /// <summary>
+        /// Whether to print to the console
+        /// </summary>
+        public bool ConsoleLog { get; set; }
     }
 
     public class Stage
