@@ -20,7 +20,9 @@ namespace Benchy.Models
 
         public override string ToString()
         {
-            return $"Id: {Id}; Url: {Url}";
+            return $"Url: {Url}; " +
+                   $"StatusCode: {StatusCode}; " +
+                   $"DurationMs: {DurationMs}";
         }
     }
 }

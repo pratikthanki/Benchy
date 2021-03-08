@@ -40,16 +40,11 @@ namespace Benchy.Helpers
             int stageId,
             CancellationToken cancellationToken)
         {
-            var report = new RequestSummary()
+            var report = new RequestSummary
             {
-                Id = Guid.NewGuid(),
-                StageId = stageId,
-                Url = url
+                Id = Guid.NewGuid(), StageId = stageId, Url = url, Start = DateTime.UtcNow
             };
 
-            _logger.LogInformation($"Sending request: {report}");
-
-            report.Start = DateTime.UtcNow;
             _timeHandler.Start();
 
             var request = await GetAsync(url, cancellationToken);
@@ -59,6 +54,8 @@ namespace Benchy.Helpers
 
             report.DurationMs = _timeHandler.ElapsedMilliseconds();
             report.StatusCode = request.StatusCode;
+            
+            _logger.LogInformation($"Request sent: {report}");
 
             return report;
         }
