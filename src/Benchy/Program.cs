@@ -14,7 +14,6 @@ namespace Benchy
 {
     class Program
     {
-        [STAThread]
         static async Task Main(string[] args)
         {
             try
@@ -42,7 +41,7 @@ namespace Benchy
                     services
                         .AddHostedService<BenchmarkService>()
                         .AddSingleton<IValueProvider, ValueProvider>()
-                        .AddTransient<IHttpClient, HttpClient>()
+                        .AddTransient<IRequestClient, RequestClient>()
                         .AddTransient<ITimeHandler, TimeHandler>()
                         .AddTransient<ICalculationHandler, CalculationHandler>()
                         .AddTransient<IReporter, JsonReporter>()

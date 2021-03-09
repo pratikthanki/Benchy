@@ -1,12 +1,13 @@
 using System;
 using System.Net;
+using Benchy.Configuration;
 
 namespace Benchy.Models
 {
-    public class RequestReport
+    public class RequestSummary
     {
         public Guid Id { get; set; }
-        public int StageId { get; set; }
+        public Stage Stage { get; set; }
         public string Url { get; set; }
         public HttpStatusCode StatusCode { get; set; }
         public long DurationMs { get; set; }
@@ -20,7 +21,9 @@ namespace Benchy.Models
 
         public override string ToString()
         {
-            return $"Id: {Id}; Url: {Url}";
+            return $"Url: {Url}; " +
+                   $"StatusCode: {StatusCode}; " +
+                   $"DurationMs: {DurationMs}";
         }
     }
 }

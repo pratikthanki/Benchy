@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Benchy.Configuration;
 using Benchy.Helpers;
 using Benchy.Reporters;
 using Microsoft.Extensions.Hosting;
@@ -17,7 +18,7 @@ namespace Benchy.Services
         private readonly Configuration.Configuration _configuration;
         private readonly IValueProvider _valueProvider;
         private readonly IReporter _reporter;
-        private readonly IHttpClient _httpClient;
+        private readonly IRequestClient _requestClient;
         private readonly ICalculationHandler _calculationHandler;
         private readonly CancellationTokenSource _cancellationTokenSource;
 
@@ -29,13 +30,13 @@ namespace Benchy.Services
             IHostApplicationLifetime appLifetime,
             ICalculationHandler calculationHandler,
             IValueProvider valueProvider,
-            IHttpClient httpClient,
+            IRequestClient requestClient,
             IReporter reporter)
         {
             _logger = logger;
             _calculationHandler = calculationHandler;
             _valueProvider = valueProvider;
-            _httpClient = httpClient;
+            _requestClient = requestClient;
             _reporter = reporter;
             _configuration = configuration.Value;
 
@@ -89,34 +90,43 @@ namespace Benchy.Services
             // TODO: Would it be helpful to log throughout the benchmark so it is clear the application is alive?
             // _ = Task.Run(() => { }, cancellationToken);
 
-            _calculationHandler.LogStart();
-
             try
             {
-                for (var stage = 0; stage < _configuration.Stages.Count; stage++)
+                _calculationHandler.LogTestStart();
+
+                foreach (var stage in _configuration.Stages)
                 {
                     await ProcessStage(stage, cancellationToken);
 
                     await Task.Delay(_configuration.SecondsDelayBetweenStages * 1000, cancellationToken);
                 }
-
-                _calculationHandler.CreateSummary();
-
-                await _reporter.Write(_calculationHandler.SummaryReport);
             }
             catch (Exception e)
             {
                 _logger.LogCritical($"There was an error in running Benchy: {e}");
-                _calculationHandler.SummaryReport.Status = TaskStatus.Failed;
+                _calculationHandler.SetStatus(TaskStatus.Failed);
             }
             finally
             {
-                _calculationHandler.LogEnd();
-
+                _calculationHandler.LogTestEnd();
                 _cancellationTokenSource.Cancel();
             }
 
-            _calculationHandler.SummaryReport.Status = TaskStatus.Success;
+            _calculationHandler.SetStatus(TaskStatus.Success);
+            _calculationHandler.CreateSummaryReport();
+
+            await _reporter.Write(_calculationHandler.GetSummaryReport());
+
+            // TODO: make this better when printing results to stdout
+            if (_configuration.ConsoleLog)
+            {
+                var report = _calculationHandler.GetSummaryReport();
+                foreach (var StageSummary in report.StageSummary)
+                {
+                    _logger.LogInformation($"Results for stage: {StageSummary.Stage}; Url: {StageSummary.Url}");
+                    _logger.LogInformation($"{StageSummary}");
+                }
+            }
         }
 
         private string GetRandomUrl()
@@ -129,9 +139,8 @@ namespace Benchy.Services
             return _valueProvider.GetRandomInt(concurrentUsers) + 1;
         }
 
-        private async Task ProcessStage(int stageId, CancellationToken cancellationToken)
+        private async Task ProcessStage(Stage stage, CancellationToken cancellationToken)
         {
-            var stage = _configuration.Stages[stageId];
             var totalRequests = stage.Requests;
 
             _logger.LogInformation($"Running requests: {totalRequests}");
@@ -143,7 +152,11 @@ namespace Benchy.Services
                 // A set of request tasks 
                 var requests = Enumerable
                     .Range(0, count)
-                    .Select(_ => _httpClient.RecordRequestAsync(GetRandomUrl(), stageId, cancellationToken))
+                    .Select(_ => _requestClient.RecordRequestAsync(
+                        GetRandomUrl(),
+                        stage,
+                        _configuration.Headers,
+                        cancellationToken))
                     .ToList();
 
                 _logger.LogInformation($"Running total requests: {count}");

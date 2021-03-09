@@ -41,14 +41,19 @@ namespace Benchy.Configuration
         public List<Stage> Stages { get; set; }
 
         /// <summary>
-        /// Set the User Agent for all requests
-        /// </summary>
-        public string UserAgent { get; set; }
-
-        /// <summary>
         /// Set seed to create reproducible test runs
         /// </summary>
         public int RandomSeed { get; set; }
+        
+        /// <summary>
+        /// Whether to print to the console
+        /// </summary>
+        public bool ConsoleLog { get; set; }
+        
+        /// <summary>
+        /// Set of headers to pass with the query
+        /// </summary>
+        public Dictionary<string, string> Headers { get; set; }
     }
 
     public class Stage
@@ -62,5 +67,10 @@ namespace Benchy.Configuration
         /// Concurrent (user) requests to make 
         /// </summary>
         public int VirtualUsers { get; set; }
+
+        public override string ToString()
+        {
+            return $"Requests: {Requests}; VirtualUsers: {VirtualUsers}";
+        }
     }
 }
