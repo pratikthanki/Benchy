@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Benchy.Extensions;
 using Benchy.Models;
 
 namespace Benchy.Helpers
@@ -11,7 +12,8 @@ namespace Benchy.Helpers
         void LogTestEnd();
         void AddRequestReport(RequestSummary requestSummary);
         void SetStatus(TaskStatus taskStatus);
-        SummaryReport CreateSummaryReport();
+        void CreateSummaryReport();
+        SummaryReport GetSummaryReport();
     }
 
     public class CalculationHandler : ICalculationHandler
@@ -29,15 +31,14 @@ namespace Benchy.Helpers
         public void LogTestEnd() => SummaryReport.TestEnd = DateTimeOffset.UtcNow;
         public void AddRequestReport(RequestSummary requestSummary) => RequestReports.Add(requestSummary);
         public void SetStatus(TaskStatus taskStatus) => SummaryReport.Status = taskStatus;
+        public SummaryReport GetSummaryReport() => SummaryReport;
 
-        public SummaryReport CreateSummaryReport()
+        public void CreateSummaryReport()
         {
             SummaryReport.StageSummary = RequestReports
-                .GroupBy(x => (x.Url, x.StageId))
+                .GroupBy(x => (x.Url, x.Stage))
                 .ToDictionary(x => x.Key, x => x.ToList())
                 .Select(x => Summarize(x.Value));
-
-            return SummaryReport;
         }
 
         private static StageSummary Summarize(IList<RequestSummary> requests)
@@ -50,7 +51,7 @@ namespace Benchy.Helpers
 
             return new StageSummary
             {
-                StageId = requests.First().StageId,
+                Stage = requests.First().Stage,
                 Url = requests.First().Url,
                 Http2xx = statusCodes.TryGetValue(200, out var count2xx) ? count2xx : 0,
                 Http3xx = statusCodes.TryGetValue(300, out var count3xx) ? count3xx : 0,
@@ -59,40 +60,16 @@ namespace Benchy.Helpers
                 Average = Math.Round(requests.Average(x => x.DurationMs), 2),
                 Minimum = requests.Min(x => x.DurationMs),
                 Maximum = requests.Max(x => x.DurationMs),
-                StdDev = CalculateStandardDeviation(durations),
-                Percentile50 = CalculatePercentile(durations, 0.5),
-                Percentile66 = CalculatePercentile(durations, 0.66),
-                Percentile75 = CalculatePercentile(durations, 0.75),
-                Percentile80 = CalculatePercentile(durations, 0.8),
-                Percentile90 = CalculatePercentile(durations, 0.9),
-                Percentile95 = CalculatePercentile(durations, 0.95),
-                Percentile98 = CalculatePercentile(durations, 0.98),
-                Percentile99 = CalculatePercentile(durations, 0.99)
+                StdDev = durations.CalculateStandardDeviation(),
+                Percentile50 = durations.CalculatePercentile(0.5),
+                Percentile66 = durations.CalculatePercentile(0.66),
+                Percentile75 = durations.CalculatePercentile(0.75),
+                Percentile80 = durations.CalculatePercentile(0.8),
+                Percentile90 = durations.CalculatePercentile(0.9),
+                Percentile95 = durations.CalculatePercentile(0.95),
+                Percentile98 = durations.CalculatePercentile(0.98),
+                Percentile99 = durations.CalculatePercentile(0.99)
             };
-        }
-
-        private static double CalculatePercentile(IReadOnlyList<long> durations, double percentile)
-        {
-            var realIndex = percentile * (durations.Count - 1);
-            var index = (int) realIndex;
-            var frac = realIndex - index;
-
-            if (index + 1 < durations.Count)
-            {
-                return durations[index] * (1 - frac) + durations[index + 1] * frac;
-            }
-
-            return Math.Round((double) durations[index], 3);
-        }
-
-        private static double CalculateStandardDeviation(IReadOnlyCollection<long> durations)
-        {
-            var avg = durations.Average();
-            var sum = durations.Sum(d => Math.Pow(d - avg, 2));
-
-            var stdDev = Math.Sqrt(sum / (durations.Count - 1));
-
-            return Math.Round(stdDev, 3);
         }
     }
 }

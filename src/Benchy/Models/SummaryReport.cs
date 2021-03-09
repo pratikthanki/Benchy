@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using Benchy.Configuration;
 using Newtonsoft.Json.Converters;
 
 namespace Benchy.Models
@@ -17,7 +18,7 @@ namespace Benchy.Models
 
     public class StageSummary
     {
-        public int StageId { get; set; }
+        public Stage Stage { get; set; }
         public string Url { get; set; }
         public int Http2xx { get; set; }
         public int Http3xx { get; set; }
@@ -35,5 +36,10 @@ namespace Benchy.Models
         public double Percentile95 { get; set; }
         public double Percentile98 { get; set; }
         public double Percentile99 { get; set; }
+
+        public override string ToString()
+        {
+            return $"{Average}, {Minimum}, {Maximum}";
+        }
     }
 }

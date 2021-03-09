@@ -41,7 +41,7 @@ namespace Benchy
                     services
                         .AddHostedService<BenchmarkService>()
                         .AddSingleton<IValueProvider, ValueProvider>()
-                        .AddTransient<IHttpClient, HttpClient>()
+                        .AddTransient<IRequestClient, RequestClient>()
                         .AddTransient<ITimeHandler, TimeHandler>()
                         .AddTransient<ICalculationHandler, CalculationHandler>()
                         .AddTransient<IReporter, JsonReporter>()
