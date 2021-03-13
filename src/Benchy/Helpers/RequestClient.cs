@@ -11,7 +11,7 @@ namespace Benchy.Helpers
 {
     public interface IRequestClient
     {
-        Task<RequestSummary> RecordRequestAsync(
+        ValueTask<RequestSummary> RecordRequestAsync(
             string url,
             Stage stage,
             Dictionary<string, string> headers,
@@ -29,7 +29,7 @@ namespace Benchy.Helpers
             _timeHandler = timeHandler;
         }
 
-        public async Task<RequestSummary> RecordRequestAsync(
+        public async ValueTask<RequestSummary> RecordRequestAsync(
             string url,
             Stage stage,
             Dictionary<string, string> headers,
