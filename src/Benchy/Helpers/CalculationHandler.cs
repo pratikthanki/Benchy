@@ -12,7 +12,6 @@ namespace Benchy.Helpers
         void LogTestEnd();
         void AddRequestReport(RequestSummary requestSummary);
         void SetStatus(TaskStatus taskStatus);
-        void CreateSummaryReport();
         SummaryReport GetSummaryReport();
     }
 
@@ -31,14 +30,15 @@ namespace Benchy.Helpers
         public void LogTestEnd() => SummaryReport.TestEnd = DateTimeOffset.UtcNow;
         public void AddRequestReport(RequestSummary requestSummary) => RequestReports.Add(requestSummary);
         public void SetStatus(TaskStatus taskStatus) => SummaryReport.Status = taskStatus;
-        public SummaryReport GetSummaryReport() => SummaryReport;
 
-        public void CreateSummaryReport()
+        public SummaryReport GetSummaryReport()
         {
             SummaryReport.StageSummary = RequestReports
                 .GroupBy(x => (x.Url, x.Stage))
                 .ToDictionary(x => x.Key, x => x.ToList())
                 .Select(x => Summarize(x.Value));
+
+            return SummaryReport;
         }
 
         private static StageSummary Summarize(IList<RequestSummary> requests)

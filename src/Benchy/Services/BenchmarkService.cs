@@ -1,13 +1,17 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Benchy.Configuration;
 using Benchy.Helpers;
+using Benchy.Models;
 using Benchy.Reporters;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using static System.Threading.Tasks.Task;
 using TaskStatus = Benchy.Models.TaskStatus;
 
 namespace Benchy.Services
@@ -62,12 +66,12 @@ namespace Benchy.Services
 
             if (!_cancellationTokenSource.IsCancellationRequested)
             {
-                _task = Task.Run(() => RunSafe(_cancellationTokenSource.Token), cancellationToken);
+                _task = Run(() => RunSafe(_cancellationTokenSource.Token), cancellationToken);
             }
 
             _logger.LogInformation($"Started {nameof(BenchmarkService)}..");
 
-            return Task.CompletedTask;
+            return CompletedTask;
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
@@ -98,7 +102,7 @@ namespace Benchy.Services
                 {
                     await ProcessStage(stage, cancellationToken);
 
-                    await Task.Delay(_configuration.SecondsDelayBetweenStages * 1000, cancellationToken);
+                    await Delay(_configuration.SecondsDelayBetweenStages * 1000, cancellationToken);
                 }
             }
             catch (Exception e)
@@ -113,63 +117,101 @@ namespace Benchy.Services
             }
 
             _calculationHandler.SetStatus(TaskStatus.Success);
-            _calculationHandler.CreateSummaryReport();
 
             await _reporter.Write(_calculationHandler.GetSummaryReport());
 
             // TODO: make this better when printing results to stdout
             if (_configuration.ConsoleLog)
             {
-                var report = _calculationHandler.GetSummaryReport();
-                foreach (var StageSummary in report.StageSummary)
+                ConsoleLogReport();
+            }
+        }
+
+        private void ConsoleLogReport()
+        {
+            var report = _calculationHandler.GetSummaryReport();
+            foreach (var StageSummary in report.StageSummary)
+            {
+                _logger.LogInformation($"Results for stage: {StageSummary.Stage}; Url: {StageSummary.Url}");
+                _logger.LogInformation($"{StageSummary}");
+            }
+        }
+
+        private async Task<ChannelReader<ValueTask<RequestSummary>>> BuildUserRequestChannelReader(
+            Stage stage,
+            CancellationToken cancellationToken)
+        {
+            var totalRequests = stage.Requests;
+
+            var requestChannel = Channel.CreateBounded<ValueTask<RequestSummary>>(
+                new BoundedChannelOptions(totalRequests)
                 {
-                    _logger.LogInformation($"Results for stage: {StageSummary.Stage}; Url: {StageSummary.Url}");
-                    _logger.LogInformation($"{StageSummary}");
+                    SingleReader = false,
+                    SingleWriter = true
+                });
+
+            _logger.LogInformation($"Building bounded request channel: {totalRequests}");
+
+            // Separate producer thread
+            await Run(() =>
+            {
+                Enumerable
+                    .Range(0, totalRequests)
+                    .ToList()
+                    .ForEach(async _ =>
+                    {
+                        var request = _requestClient.RecordRequestAsync(
+                            GetRandomUrl(),
+                            stage,
+                            _configuration.Headers,
+                            cancellationToken);
+
+                        await requestChannel.Writer.WriteAsync(request, cancellationToken);
+                    });
+
+                requestChannel.Writer.TryComplete();
+            }, cancellationToken);
+
+            return requestChannel.Reader;
+        }
+
+        private async Task ProcessStage(Stage stage, CancellationToken cancellationToken)
+        {
+            var reader = await BuildUserRequestChannelReader(stage, cancellationToken);
+            var requests = new List<RequestSummary>();
+
+            // Create a list of consumers
+            var tasks = new List<ValueTask<RequestSummary>>();
+            var count = 0;
+
+            while (await reader.WaitToReadAsync(cancellationToken))
+            {
+                if (!reader.TryRead(out var request))
+                {
+                    break;
                 }
+
+                count++;
+                if (count < stage.VirtualUsers)
+                {
+                    tasks.Add(request);
+                    continue;
+                }
+
+                await WhenAll(tasks
+                    .Where(t => !t.IsCompletedSuccessfully)
+                    .Select(t => t.AsTask()));
+
+                tasks.ForEach(task => _calculationHandler.AddRequestReport(task.Result));
+
+                count = 0;
+                tasks = new List<ValueTask<RequestSummary>>();
             }
         }
 
         private string GetRandomUrl()
         {
             return _configuration.Urls[_valueProvider.GetRandomInt(_configuration.Urls.Length)];
-        }
-
-        private int GetRandomUserCount(int concurrentUsers)
-        {
-            return _valueProvider.GetRandomInt(concurrentUsers) + 1;
-        }
-
-        private async Task ProcessStage(Stage stage, CancellationToken cancellationToken)
-        {
-            var totalRequests = stage.Requests;
-
-            _logger.LogInformation($"Running requests: {totalRequests}");
-
-            do
-            {
-                var count = Math.Min(GetRandomUserCount(stage.VirtualUsers), totalRequests);
-
-                // A set of request tasks 
-                var requests = Enumerable
-                    .Range(0, count)
-                    .Select(_ => _requestClient.RecordRequestAsync(
-                        GetRandomUrl(),
-                        stage,
-                        _configuration.Headers,
-                        cancellationToken))
-                    .ToList();
-
-                _logger.LogInformation($"Running total requests: {count}");
-
-                await Task.WhenAll(requests);
-
-                requests.ForEach(async request => { _calculationHandler.AddRequestReport(await request); });
-
-                totalRequests -= count;
-
-                _logger.LogInformation($"Requests remaining: {totalRequests}");
-
-            } while (totalRequests > 0);
         }
     }
 }
