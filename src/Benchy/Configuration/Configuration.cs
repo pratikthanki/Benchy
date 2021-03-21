@@ -16,9 +16,14 @@ namespace Benchy.Configuration
         public ReportType ReportType { get; set; }
 
         /// <summary>
-        /// List of urls 
+        /// Whether to print to the console
         /// </summary>
-        public string[] Urls { get; set; }
+        public bool ConsoleLog { get; set; }
+        
+        /// <summary>
+        /// Set seed to create reproducible test runs
+        /// </summary>
+        public int RandomSeed { get; set; }
 
         /// <summary>
         /// Delay between starting each stage
@@ -26,30 +31,15 @@ namespace Benchy.Configuration
         public int SecondsDelayBetweenStages { get; set; }
 
         /// <summary>
-        /// Display results at each stage 
+        /// List of urls 
         /// </summary>
-        public bool OutputStageSummary { get; set; } = false;
-
-        /// <summary>
-        /// Json file of summary statistics for each stage
-        /// </summary>
-        public bool OutputSummaryReport { get; set; } = true;
+        public string[] Urls { get; set; }
 
         /// <summary>
         /// List of stages
         /// </summary>
         public List<Stage> Stages { get; set; }
 
-        /// <summary>
-        /// Set seed to create reproducible test runs
-        /// </summary>
-        public int RandomSeed { get; set; }
-        
-        /// <summary>
-        /// Whether to print to the console
-        /// </summary>
-        public bool ConsoleLog { get; set; }
-        
         /// <summary>
         /// Set of headers to pass with the query
         /// </summary>

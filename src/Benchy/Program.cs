@@ -39,13 +39,22 @@ namespace Benchy
                 .ConfigureServices((hostContext, services) =>
                 {
                     services
-                        .AddHostedService<BenchmarkService>()
                         .AddSingleton<IValueProvider, ValueProvider>()
                         .AddTransient<IRequestClient, RequestClient>()
                         .AddTransient<ITimeHandler, TimeHandler>()
                         .AddTransient<ICalculationHandler, CalculationHandler>()
                         .AddTransient<IReporter, JsonReporter>()
                         .Configure<Configuration.Configuration>(hostContext.Configuration);
+
+                    if (string.Equals(hostContext.Configuration["Mode"], "Consumer",
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        services.AddHostedService<ConsumerService>();
+                    }
+                    else
+                    {
+                        services.AddHostedService<ProducerService>();
+                    }
                 })
                 .ConfigureLogging(logging =>
                 {
